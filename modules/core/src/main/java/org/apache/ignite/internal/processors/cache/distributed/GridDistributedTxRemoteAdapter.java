@@ -731,7 +731,7 @@ public abstract class GridDistributedTxRemoteAdapter extends IgniteTxAdapter
     }
 
     /** {@inheritDoc} */
-    @Override public void commit() throws IgniteCheckedException {
+    @Override public final void commitRemoteTx() throws IgniteCheckedException {
         if (optimistic())
             state(PREPARED);
 
@@ -750,10 +750,15 @@ public abstract class GridDistributedTxRemoteAdapter extends IgniteTxAdapter
             if (!isSystemInvalidate())
                 throw new IgniteCheckedException("Invalid transaction state for commit [state=" + state + ", tx=" + this + ']');
 
-            rollback();
+            rollbackRemoteTx();
         }
 
         commitIfLocked();
+    }
+
+    /** {@inheritDoc} */
+    @Override public void commit() throws IgniteCheckedException {
+        commitRemoteTx();
     }
 
     /**
@@ -768,7 +773,7 @@ public abstract class GridDistributedTxRemoteAdapter extends IgniteTxAdapter
     /** {@inheritDoc} */
     @Override public IgniteInternalFuture<IgniteInternalTx> commitAsync() {
         try {
-            commit();
+            commitRemoteTx();
 
             return new GridFinishedFuture<IgniteInternalTx>(this);
         }
@@ -778,8 +783,7 @@ public abstract class GridDistributedTxRemoteAdapter extends IgniteTxAdapter
     }
 
     /** {@inheritDoc} */
-    @SuppressWarnings({"CatchGenericClass"})
-    @Override public void rollback() {
+    @Override public void rollbackRemoteTx() {
         try {
             // Note that we don't evict near entries here -
             // they will be deleted by their corresponding transactions.
@@ -797,8 +801,14 @@ public abstract class GridDistributedTxRemoteAdapter extends IgniteTxAdapter
     }
 
     /** {@inheritDoc} */
+    @SuppressWarnings({"CatchGenericClass"})
+    @Override public void rollback() {
+        rollbackRemoteTx();
+    }
+
+    /** {@inheritDoc} */
     @Override public IgniteInternalFuture<IgniteInternalTx> rollbackAsync() {
-        rollback();
+        rollbackRemoteTx();
 
         return new GridFinishedFuture<IgniteInternalTx>(this);
     }

@@ -160,7 +160,7 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
             if (e instanceof IgniteTxRollbackCheckedException) {
                 if (marked) {
                     try {
-                        tx.rollback();
+                        tx.rollbackTopLevelTx();
                     }
                     catch (IgniteCheckedException ex) {
                         U.error(log, "Failed to automatically rollback transaction: " + tx, ex);

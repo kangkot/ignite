@@ -749,7 +749,7 @@ public class GridCacheSharedContext<K, V> {
         if (ctx == null) {
             tx.txState().awaitLastFut(this);
 
-            return tx.commitAsync();
+            return tx.commitTopLevelTxAsync();
         }
         else
             return ctx.cache().commitTxAsync(tx);

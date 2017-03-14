@@ -27,6 +27,7 @@ import org.apache.ignite.internal.processors.cache.GridCacheAbstractSelfTest;
 import org.apache.ignite.internal.processors.cache.GridCacheAdapter;
 import org.apache.ignite.internal.processors.cache.GridCacheEntryEx;
 import org.apache.ignite.internal.processors.cache.IgniteInternalCache;
+import org.apache.ignite.internal.processors.cache.distributed.near.GridNearTxLocal;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteInternalTx;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteTxManager;
 import org.apache.ignite.internal.util.typedef.F;
@@ -84,14 +85,14 @@ public class IgniteCacheSystemTransactionsSelfTest extends GridCacheAbstractSelf
 
             utilityCache.getAndPutIfAbsent("2", "2");
 
-            try (IgniteInternalTx itx = utilityCache.txStartEx(PESSIMISTIC, REPEATABLE_READ)) {
+            try (GridNearTxLocal itx = utilityCache.txStartEx(PESSIMISTIC, REPEATABLE_READ)) {
                 assertEquals(null, utilityCache.get("1"));
                 assertEquals("2", utilityCache.get("2"));
                 assertEquals(null, utilityCache.get("3"));
 
                 utilityCache.getAndPut("3", "3");
 
-                itx.commit();
+                itx.commitTopLevelTx();
             }
 
             jcache.put("2", "22");

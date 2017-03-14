@@ -377,7 +377,7 @@ public class GridNearTransactionalCache<K, V> extends GridNearCacheAdapter<K, V>
                                 log.debug("Node requesting lock left grid (lock request will be ignored): " + req);
 
                             if (tx != null)
-                                tx.rollback();
+                                tx.rollbackRemoteTx();
 
                             return null;
                         }

@@ -711,8 +711,10 @@ public class IgniteTxHandler {
      * @param req Request.
      * @return Future.
      */
-    @Nullable public IgniteInternalFuture<IgniteInternalTx> finish(UUID nodeId, @Nullable GridNearTxLocal locTx,
-        GridNearTxFinishRequest req) {
+    @Nullable public IgniteInternalFuture<IgniteInternalTx> finish(UUID nodeId,
+        @Nullable GridNearTxLocal locTx,
+        GridNearTxFinishRequest req)
+    {
         assert nodeId != null;
         assert req != null;
 
@@ -763,8 +765,10 @@ public class IgniteTxHandler {
      * @param req Finish request.
      * @return Finish future.
      */
-    private IgniteInternalFuture<IgniteInternalTx> finishDhtLocal(UUID nodeId, @Nullable GridNearTxLocal locTx,
-        GridNearTxFinishRequest req) {
+    private IgniteInternalFuture<IgniteInternalTx> finishDhtLocal(UUID nodeId,
+        @Nullable GridNearTxLocal locTx,
+        GridNearTxFinishRequest req)
+    {
         GridCacheVersion dhtVer = ctx.tm().mappedVersion(req.version());
 
         GridDhtTxLocal tx = null;
@@ -1011,7 +1015,7 @@ public class IgniteTxHandler {
                 U.error(log, "Failed to process prepare request: " + req, e);
 
             if (nearTx != null)
-                nearTx.rollback();
+                nearTx.rollbackRemoteTx();
 
             res = new GridDhtTxPrepareResponse(
                 req.partition(),
@@ -1212,12 +1216,12 @@ public class IgniteTxHandler {
                 tx.setPartitionUpdateCounters(
                     req.partUpdateCounters() != null ? req.partUpdateCounters().array() : null);
 
-                tx.commit();
+                tx.commitRemoteTx();
             }
             else {
                 tx.doneRemote(req.baseVersion(), null, null, null);
 
-                tx.rollback();
+                tx.rollbackRemoteTx();
             }
         }
         catch (Throwable e) {
@@ -1228,7 +1232,7 @@ public class IgniteTxHandler {
             tx.systemInvalidate(true);
 
             try {
-                tx.commit();
+                tx.commitRemoteTx();
             }
             catch (IgniteCheckedException ex) {
                 U.error(log, "Failed to invalidate transaction: " + tx, ex);
@@ -1255,7 +1259,7 @@ public class IgniteTxHandler {
             // Complete remote candidates.
             tx.doneRemote(req.version(), null, null, null);
 
-            tx.commit();
+            tx.commitRemoteTx();
         }
         catch (IgniteTxHeuristicCheckedException e) {
             // Just rethrow this exception. Transaction was already uncommitted.
@@ -1268,7 +1272,7 @@ public class IgniteTxHandler {
             tx.invalidate(true);
             tx.systemInvalidate(true);
 
-            tx.rollback();
+            tx.rollbackRemoteTx();
 
             if (e instanceof Error)
                 throw (Error)e;
@@ -1314,10 +1318,10 @@ public class IgniteTxHandler {
             }
 
             if (nearTx != null)
-                nearTx.rollback();
+                nearTx.rollbackRemoteTx();
 
             if (dhtTx != null)
-                dhtTx.rollback();
+                dhtTx.rollbackRemoteTx();
         }
     }
 
@@ -1565,7 +1569,7 @@ public class IgniteTxHandler {
             res.invalidPartitionsByCacheId(tx.invalidPartitions());
 
             if (tx.empty() && req.last()) {
-                tx.rollback();
+                tx.rollbackRemoteTx();
 
                 return null;
             }

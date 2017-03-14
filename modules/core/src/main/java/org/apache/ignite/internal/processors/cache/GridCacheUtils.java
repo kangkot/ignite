@@ -64,6 +64,7 @@ import org.apache.ignite.internal.processors.affinity.AffinityTopologyVersion;
 import org.apache.ignite.internal.processors.cache.distributed.GridDistributedLockCancelledException;
 import org.apache.ignite.internal.processors.cache.distributed.dht.GridDhtLocalPartition;
 import org.apache.ignite.internal.processors.cache.distributed.dht.GridDhtPartitionState;
+import org.apache.ignite.internal.processors.cache.distributed.near.GridNearTxLocal;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteInternalTx;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteTxEntry;
 import org.apache.ignite.internal.processors.cache.version.GridCacheVersion;
@@ -891,7 +892,7 @@ public class GridCacheUtils {
      * @param isolation Isolation.
      * @return New transaction.
      */
-    public static IgniteInternalTx txStartInternal(GridCacheContext ctx, IgniteInternalCache prj,
+    public static GridNearTxLocal txStartInternal(GridCacheContext ctx, IgniteInternalCache prj,
         TransactionConcurrency concurrency, TransactionIsolation isolation) {
         assert ctx != null;
         assert prj != null;
@@ -1257,10 +1258,10 @@ public class GridCacheUtils {
     public static <K, V> void inTx(IgniteInternalCache<K, V> cache, TransactionConcurrency concurrency,
         TransactionIsolation isolation, IgniteInClosureX<IgniteInternalCache<K ,V>> clo) throws IgniteCheckedException {
 
-        try (IgniteInternalTx tx = cache.txStartEx(concurrency, isolation);) {
+        try (GridNearTxLocal tx = cache.txStartEx(concurrency, isolation);) {
             clo.applyx(cache);
 
-            tx.commit();
+            tx.commitTopLevelTx();
         }
     }
 

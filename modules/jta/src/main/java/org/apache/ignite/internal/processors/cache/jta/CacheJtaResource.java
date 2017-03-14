@@ -101,7 +101,7 @@ final class CacheJtaResource implements XAResource, Synchronization {
             log.debug("XA resource rollback(...) [xid=" + xid + "]");
 
         try {
-            cacheTx.rollback();
+            cacheTx.rollbackTopLevelTx();
         }
         catch (IgniteCheckedException e) {
             throwException("Failed to rollback cache transaction: " + e.getMessage(), e);
@@ -147,7 +147,7 @@ final class CacheJtaResource implements XAResource, Synchronization {
             log.debug("XA resource commit(...) [xid=" + xid + ", onePhase=" + onePhase + "]");
 
         try {
-            cacheTx.commit();
+            cacheTx.commitTopLevelTx();
         }
         catch (IgniteCheckedException e) {
             throwException("Failed to commit cache transaction: " + e.getMessage(), e);
@@ -164,7 +164,7 @@ final class CacheJtaResource implements XAResource, Synchronization {
         try {
             cacheTx.invalidate(true);
 
-            cacheTx.commit();
+            cacheTx.commitTopLevelTx();
         }
         catch (IgniteCheckedException e) {
             throwException("Failed to forget cache transaction: " + e.getMessage(), e);
@@ -262,7 +262,7 @@ final class CacheJtaResource implements XAResource, Synchronization {
                     log.debug("Synchronization.afterCompletion(STATUS_COMMITTED) [xid=" + cacheTx.xid() + "]");
 
                 try {
-                    cacheTx.commit();
+                    cacheTx.commitTopLevelTx();
                 }
                 catch (IgniteCheckedException e) {
                     throw new CacheException("Failed to commit cache transaction.", e);
@@ -275,7 +275,7 @@ final class CacheJtaResource implements XAResource, Synchronization {
                     log.debug("Synchronization.afterCompletion(STATUS_ROLLEDBACK) [xid=" + cacheTx.xid() + "]");
 
                 try {
-                    cacheTx.rollback();
+                    cacheTx.rollbackTopLevelTx();
                 }
                 catch (IgniteCheckedException e) {
                     throw new CacheException("Failed to rollback cache transaction.", e);

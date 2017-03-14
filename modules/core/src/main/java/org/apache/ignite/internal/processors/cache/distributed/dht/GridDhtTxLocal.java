@@ -550,10 +550,6 @@ public class GridDhtTxLocal extends GridDhtTxLocalAdapter implements GridCacheMa
         if (log.isDebugEnabled())
             log.debug("Committing dht local tx: " + this);
 
-        // In optimistic mode prepare was called explicitly.
-        if (pessimistic())
-            prepareAsync();
-
         final GridDhtTxFinishFuture fut = new GridDhtTxFinishFuture<>(cctx, this, true);
 
         cctx.mvcc().addFuture(fut, fut.futureId());

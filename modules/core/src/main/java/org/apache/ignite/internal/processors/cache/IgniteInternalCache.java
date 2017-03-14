@@ -953,7 +953,7 @@ public interface IgniteInternalCache<K, V> extends Iterable<Cache.Entry<K, V>> {
      * @param isolation Isolation.
      * @return New transaction.
      */
-    public IgniteInternalTx txStartEx(TransactionConcurrency concurrency, TransactionIsolation isolation);
+    public GridNearTxLocal txStartEx(TransactionConcurrency concurrency, TransactionIsolation isolation);
 
     /**
      * Starts transaction with specified isolation, concurrency, timeout, invalidation flag,

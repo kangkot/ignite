@@ -687,7 +687,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
         if (F.isEmpty(map0) && F.isEmpty(invokeMap0)) {
             if (implicit())
                 try {
-                    commit();
+                    commitTopLevelTx();
                 }
                 catch (IgniteCheckedException e) {
                     return new GridFinishedFuture<>(e);
@@ -965,7 +965,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
 
             for (Object key : keys) {
                 if (key == null) {
-                    rollback();
+                    rollbackTopLevelTx();
 
                     throw new NullPointerException("Null key.");
                 }
@@ -1473,7 +1473,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
         if (F.isEmpty(keys0)) {
             if (implicit()) {
                 try {
-                    commit();
+                    commitTopLevelTx();
                 }
                 catch (IgniteCheckedException e) {
                     return new GridFinishedFuture<>(e);
@@ -1604,7 +1604,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
                 // with prepare response, if required.
                 assert loadFut.isDone();
 
-                return nonInterruptable(commitAsync().chain(new CX1<IgniteInternalFuture<IgniteInternalTx>, GridCacheReturn>() {
+                return nonInterruptable(commitTopLevelTxAsync().chain(new CX1<IgniteInternalFuture<IgniteInternalTx>, GridCacheReturn>() {
                     @Override public GridCacheReturn applyx(IgniteInternalFuture<IgniteInternalTx> txFut)
                         throws IgniteCheckedException {
                         try {
@@ -2371,7 +2371,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
                 return new GridFinishedFuture<>(e);
             }
 
-            return nonInterruptable(commitAsync().chain(
+            return nonInterruptable(commitTopLevelTxAsync().chain(
                 new CX1<IgniteInternalFuture<IgniteInternalTx>, GridCacheReturn>() {
                     @Override public GridCacheReturn applyx(IgniteInternalFuture<IgniteInternalTx> txFut)
                         throws IgniteCheckedException {
@@ -3067,8 +3067,10 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
         return true;
     }
 
-    /** {@inheritDoc} */
-    @Override public IgniteInternalFuture<?> prepareAsync() {
+    /**
+     * @return Tx prepare future.
+     */
+    public IgniteInternalFuture<?> prepareTopLevelTx() {
         GridNearTxPrepareFutureAdapter fut = (GridNearTxPrepareFutureAdapter)prepFut;
 
         if (fut == null) {
@@ -3104,8 +3106,21 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
     }
 
     /** {@inheritDoc} */
-    @SuppressWarnings({"ThrowableInstanceNeverThrown"})
-    @Override public IgniteInternalFuture<IgniteInternalTx> commitAsync() {
+    @Override public IgniteInternalFuture<?> prepareAsync() {
+        return prepareTopLevelTx();
+    }
+
+    /**
+     * @throws IgniteCheckedException If failed.
+     */
+    public void commitTopLevelTx() throws IgniteCheckedException {
+        commitTopLevelTxAsync().get();
+    }
+
+    /**
+     * @return Finish future.
+     */
+    public IgniteInternalFuture<IgniteInternalTx> commitTopLevelTxAsync() {
         if (log.isDebugEnabled())
             log.debug("Committing near local tx: " + this);
 
@@ -3121,7 +3136,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
             return new GridFinishedFuture<>((IgniteInternalTx)this);
         }
 
-        prepareAsync();
+        final IgniteInternalFuture<?> prepareFut = prepareTopLevelTx();
 
         GridNearTxFinishFuture fut = commitFut;
 
@@ -3130,8 +3145,6 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
             return commitFut;
 
         cctx.mvcc().addFuture(fut, fut.futureId());
-
-        final IgniteInternalFuture<?> prepareFut = prepFut;
 
         prepareFut.listen(new CI1<IgniteInternalFuture<?>>() {
             @Override public void apply(IgniteInternalFuture<?> f) {
@@ -3163,7 +3176,21 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
     }
 
     /** {@inheritDoc} */
-    @Override public IgniteInternalFuture<IgniteInternalTx> rollbackAsync() {
+    @Override public IgniteInternalFuture<IgniteInternalTx> commitAsync() {
+        return commitTopLevelTxAsync();
+    }
+
+    /**
+     * @throws IgniteCheckedException If failed.
+     */
+    public void rollbackTopLevelTx() throws IgniteCheckedException {
+        rollbackTopLevelTxAsync().get();
+    }
+
+    /**
+     * @return Rollback future.
+     */
+    public IgniteInternalFuture<IgniteInternalTx> rollbackTopLevelTxAsync() {
         if (log.isDebugEnabled())
             log.debug("Rolling back near tx: " + this);
 
@@ -3224,6 +3251,11 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
         }
 
         return fut;
+    }
+
+    /** {@inheritDoc} */
+    @Override public IgniteInternalFuture<IgniteInternalTx> rollbackAsync() {
+        return rollbackTopLevelTxAsync();
     }
 
     /**
@@ -3300,7 +3332,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
             fut.onError(new IgniteTxRollbackCheckedException("Failed to prepare transaction: " + this, e));
 
             try {
-                rollback();
+                rollbackTopLevelTx();
             }
             catch (IgniteTxOptimisticCheckedException e1) {
                 if (log.isDebugEnabled())
@@ -3324,10 +3356,6 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
     public IgniteInternalFuture<IgniteInternalTx> commitAsyncLocal() {
         if (log.isDebugEnabled())
             log.debug("Committing colocated tx locally: " + this);
-
-        // In optimistic mode prepare was called explicitly.
-        if (pessimistic())
-            prepareAsync();
 
         IgniteInternalFuture<?> prep = prepFut;
 
@@ -3905,7 +3933,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter {
 
                 // Commit implicit transactions.
                 if (implicit())
-                    commit();
+                    commitTopLevelTx();
 
                 rollback = false;
 

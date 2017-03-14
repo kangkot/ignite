@@ -89,16 +89,13 @@ import org.apache.ignite.internal.processors.cache.distributed.dht.GridDhtLocalP
 import org.apache.ignite.internal.processors.cache.distributed.near.GridNearTxLocal;
 import org.apache.ignite.internal.processors.cache.dr.GridCacheDrInfo;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteInternalTx;
-import org.apache.ignite.internal.processors.cache.transactions.IgniteTxAdapter;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteTxLocalAdapter;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteTxLocalEx;
-import org.apache.ignite.internal.processors.cache.transactions.TransactionProxyImpl;
 import org.apache.ignite.internal.processors.cache.version.GridCacheRawVersionedEntry;
 import org.apache.ignite.internal.processors.cache.version.GridCacheVersion;
 import org.apache.ignite.internal.processors.datastreamer.DataStreamerEntry;
 import org.apache.ignite.internal.processors.datastreamer.DataStreamerImpl;
 import org.apache.ignite.internal.processors.dr.IgniteDrDataStreamerCacheUpdater;
-import org.apache.ignite.internal.processors.igfs.IgfsUtils;
 import org.apache.ignite.internal.processors.platform.cache.PlatformCacheEntryFilter;
 import org.apache.ignite.internal.processors.task.GridInternal;
 import org.apache.ignite.internal.transactions.IgniteTxHeuristicCheckedException;
@@ -3290,7 +3287,7 @@ public abstract class GridCacheAdapter<K, V> implements IgniteInternalCache<K, V
     }
 
     /** {@inheritDoc} */
-    @Override public IgniteInternalTx txStartEx(TransactionConcurrency concurrency, TransactionIsolation isolation) {
+    @Override public GridNearTxLocal txStartEx(TransactionConcurrency concurrency, TransactionIsolation isolation) {
         IgniteTransactionsEx txs = ctx.kernalContext().cache().transactions();
 
         return txs.txStartEx(ctx, concurrency, isolation);
@@ -4153,7 +4150,7 @@ public abstract class GridCacheAdapter<K, V> implements IgniteInternalCache<K, V
                 IgniteInternalFuture<IgniteInternalTx> f = new GridEmbeddedFuture<>(fut,
                     new C2<Object, Exception, IgniteInternalFuture<IgniteInternalTx>>() {
                         @Override public IgniteInternalFuture<IgniteInternalTx> apply(Object o, Exception e) {
-                            return tx.commitAsync();
+                            return tx.commitTopLevelTxAsync();
                         }
                     });
 
@@ -4162,7 +4159,7 @@ public abstract class GridCacheAdapter<K, V> implements IgniteInternalCache<K, V
                 return f;
             }
 
-            IgniteInternalFuture<IgniteInternalTx> f = tx.commitAsync();
+            IgniteInternalFuture<IgniteInternalTx> f = tx.commitTopLevelTxAsync();
 
             saveFuture(holder, f);
 
@@ -4243,7 +4240,7 @@ public abstract class GridCacheAdapter<K, V> implements IgniteInternalCache<K, V
                 catch (IgniteCheckedException e) {
                     if (!(e instanceof IgniteTxRollbackCheckedException)) {
                         try {
-                            tx.rollback();
+                            tx.rollbackTopLevelTx();
 
                             e = new IgniteTxRollbackCheckedException("Transaction has been rolled back: " +
                                 tx.xid(), e);

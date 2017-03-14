@@ -29,7 +29,7 @@ import org.apache.ignite.IgniteLogger;
 import org.apache.ignite.internal.GridKernalContext;
 import org.apache.ignite.internal.processors.cache.GridCacheContext;
 import org.apache.ignite.internal.processors.cache.IgniteInternalCache;
-import org.apache.ignite.internal.processors.cache.transactions.IgniteInternalTx;
+import org.apache.ignite.internal.processors.cache.distributed.near.GridNearTxLocal;
 import org.apache.ignite.internal.util.typedef.internal.CU;
 import org.apache.ignite.internal.util.typedef.internal.S;
 import org.apache.ignite.internal.util.typedef.internal.U;
@@ -90,7 +90,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
     /** Callable for {@link #incrementAndGet()}. */
     private final Callable<Long> incAndGetCall = retryTopologySafe(new Callable<Long>() {
         @Override public Long call() throws Exception {
-            try (IgniteInternalTx tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
+            try (GridNearTxLocal tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
                 GridCacheAtomicLongValue val = atomicView.get(key);
 
                 if (val == null)
@@ -102,7 +102,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
 
                 atomicView.put(key, val);
 
-                tx.commit();
+                tx.commitTopLevelTx();
 
                 return retVal;
             }
@@ -117,7 +117,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
     /** Callable for {@link #getAndIncrement()}. */
     private final Callable<Long> getAndIncCall = retryTopologySafe(new Callable<Long>() {
         @Override public Long call() throws Exception {
-            try (IgniteInternalTx tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
+            try (GridNearTxLocal tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
                 GridCacheAtomicLongValue val = atomicView.get(key);
 
                 if (val == null)
@@ -129,7 +129,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
 
                 atomicView.put(key, val);
 
-                tx.commit();
+                tx.commitTopLevelTx();
 
                 return retVal;
             }
@@ -144,7 +144,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
     /** Callable for {@link #decrementAndGet()}. */
     private final Callable<Long> decAndGetCall = retryTopologySafe(new Callable<Long>() {
         @Override public Long call() throws Exception {
-            try (IgniteInternalTx tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
+            try (GridNearTxLocal tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
                 GridCacheAtomicLongValue val = atomicView.get(key);
 
                 if (val == null)
@@ -156,7 +156,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
 
                 atomicView.put(key, val);
 
-                tx.commit();
+                tx.commitTopLevelTx();
 
                 return retVal;
             }
@@ -171,7 +171,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
     /** Callable for {@link #getAndDecrement()}. */
     private final Callable<Long> getAndDecCall = retryTopologySafe(new Callable<Long>() {
         @Override public Long call() throws Exception {
-            try (IgniteInternalTx tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
+            try (GridNearTxLocal tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
                 GridCacheAtomicLongValue val = atomicView.get(key);
 
                 if (val == null)
@@ -183,7 +183,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
 
                 atomicView.put(key, val);
 
-                tx.commit();
+                tx.commitTopLevelTx();
 
                 return retVal;
             }
@@ -430,7 +430,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
     private Callable<Long> internalAddAndGet(final long l) {
         return retryTopologySafe(new Callable<Long>() {
             @Override public Long call() throws Exception {
-                try (IgniteInternalTx tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
+                try (GridNearTxLocal tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
                     GridCacheAtomicLongValue val = atomicView.get(key);
 
                     if (val == null)
@@ -442,7 +442,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
 
                     atomicView.put(key, val);
 
-                    tx.commit();
+                    tx.commitTopLevelTx();
 
                     return retVal;
                 }
@@ -464,7 +464,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
     private Callable<Long> internalGetAndAdd(final long l) {
         return retryTopologySafe(new Callable<Long>() {
             @Override public Long call() throws Exception {
-                try (IgniteInternalTx tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
+                try (GridNearTxLocal tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
                     GridCacheAtomicLongValue val = atomicView.get(key);
 
                     if (val == null)
@@ -476,7 +476,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
 
                     atomicView.put(key, val);
 
-                    tx.commit();
+                    tx.commitTopLevelTx();
 
                     return retVal;
                 }
@@ -498,7 +498,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
     private Callable<Long> internalGetAndSet(final long l) {
         return new Callable<Long>() {
             @Override public Long call() throws Exception {
-                try (IgniteInternalTx tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
+                try (GridNearTxLocal tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
                     GridCacheAtomicLongValue val = atomicView.get(key);
 
                     if (val == null)
@@ -510,7 +510,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
 
                     atomicView.put(key, val);
 
-                    tx.commit();
+                    tx.commitTopLevelTx();
 
                     return retVal;
                 }
@@ -534,7 +534,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
     private Callable<Long> internalCompareAndSetAndGet(final long expVal, final long newVal) {
         return new Callable<Long>() {
             @Override public Long call() throws Exception {
-                try (IgniteInternalTx tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
+                try (GridNearTxLocal tx = CU.txStartInternal(ctx, atomicView, PESSIMISTIC, REPEATABLE_READ)) {
                     GridCacheAtomicLongValue val = atomicView.get(key);
 
                     if (val == null)
@@ -547,7 +547,7 @@ public final class GridCacheAtomicLongImpl implements GridCacheAtomicLongEx, Ext
 
                         atomicView.getAndPut(key, val);
 
-                        tx.commit();
+                        tx.commitTopLevelTx();
                     }
 
                     return retVal;

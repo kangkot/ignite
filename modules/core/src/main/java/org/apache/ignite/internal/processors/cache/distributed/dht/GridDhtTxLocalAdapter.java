@@ -29,7 +29,6 @@ import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.internal.IgniteInternalFuture;
 import org.apache.ignite.internal.processors.affinity.AffinityTopologyVersion;
-import org.apache.ignite.internal.processors.cache.CacheEntryPredicate;
 import org.apache.ignite.internal.processors.cache.GridCacheContext;
 import org.apache.ignite.internal.processors.cache.GridCacheEntryEx;
 import org.apache.ignite.internal.processors.cache.GridCacheEntryRemovedException;
@@ -654,7 +653,6 @@ public abstract class GridDhtTxLocalAdapter extends IgniteTxLocalAdapter {
                 needRetVal,
                 createTtl,
                 accessTtl,
-                null,
                 skipStore,
                 keepBinary);
         }
@@ -673,7 +671,6 @@ public abstract class GridDhtTxLocalAdapter extends IgniteTxLocalAdapter {
      * @param needRetVal Return value flag.
      * @param createTtl TTL for create operation.
      * @param accessTtl TTL for read operation.
-     * @param filter Entry write filter.
      * @param skipStore Skip store flag.
      * @return Future for lock acquisition.
      */
@@ -685,7 +682,6 @@ public abstract class GridDhtTxLocalAdapter extends IgniteTxLocalAdapter {
         final boolean needRetVal,
         final long createTtl,
         final long accessTtl,
-        @Nullable final CacheEntryPredicate[] filter,
         boolean skipStore,
         boolean keepBinary) {
         if (log.isDebugEnabled())
@@ -729,7 +725,7 @@ public abstract class GridDhtTxLocalAdapter extends IgniteTxLocalAdapter {
                         /*retval*/false,
                         /*read*/read,
                         accessTtl,
-                        filter == null ? CU.empty0() : filter,
+                        CU.empty0(),
                         /*computeInvoke*/false);
 
                     return ret;
