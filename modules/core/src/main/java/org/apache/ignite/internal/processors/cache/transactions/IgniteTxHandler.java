@@ -1551,7 +1551,7 @@ public class IgniteTxHandler {
 
             // Prepare prior to reordering, so the pending locks added
             // in prepare phase will get properly ordered as well.
-            tx.prepare();
+            tx.prepareRemoteTx();
 
             if (req.last()) {
                 assert !F.isEmpty(req.transactionNodes()) :
@@ -1644,7 +1644,7 @@ public class IgniteTxHandler {
 
             // Prepare prior to reordering, so the pending locks added
             // in prepare phase will get properly ordered as well.
-            tx.prepare();
+            tx.prepareRemoteTx();
 
             if (req.last())
                 tx.state(PREPARED);

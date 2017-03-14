@@ -251,10 +251,6 @@ public abstract class IgniteTxAdapter extends GridMetadataAwareAdapter implement
     /** Store used flag. */
     protected boolean storeEnabled = true;
 
-    /** */
-    @GridToStringExclude
-    private TransactionProxyImpl proxy;
-
     /**
      * Empty constructor required for {@link Externalizable}.
      */
@@ -546,15 +542,6 @@ public abstract class IgniteTxAdapter extends GridMetadataAwareAdapter implement
 
                 break;
 
-            case RECOVERY_WAIT:
-                FINALIZING_UPD.compareAndSet(this, FinalizationStatus.NONE, FinalizationStatus.RECOVERY_WAIT);
-
-                FinalizationStatus cur = finalizing;
-
-                res = cur == FinalizationStatus.RECOVERY_WAIT || cur == FinalizationStatus.RECOVERY_FINISH;
-
-                break;
-
             case RECOVERY_FINISH:
                 FinalizationStatus old = finalizing;
 
@@ -564,7 +551,6 @@ public abstract class IgniteTxAdapter extends GridMetadataAwareAdapter implement
 
             default:
                 throw new IllegalArgumentException("Cannot set finalization status: " + status);
-
         }
 
         if (res) {
@@ -1257,7 +1243,7 @@ public abstract class IgniteTxAdapter extends GridMetadataAwareAdapter implement
      * @throws IgniteCheckedException If batch update failed.
      */
     @SuppressWarnings({"CatchGenericClass"})
-    protected void batchStoreCommit(Iterable<IgniteTxEntry> writeEntries) throws IgniteCheckedException {
+    protected final void batchStoreCommit(Iterable<IgniteTxEntry> writeEntries) throws IgniteCheckedException {
         if (!storeEnabled() || internal() ||
             (!local() && near())) // No need to work with local store at GridNearTxRemote.
             return;
@@ -1803,14 +1789,6 @@ public abstract class IgniteTxAdapter extends GridMetadataAwareAdapter implement
             state(),
             isRollbackOnly()
         );
-    }
-
-    /** {@inheritDoc} */
-    @Override public TransactionProxy proxy() {
-        if (proxy == null)
-            proxy = new TransactionProxyImpl(this, cctx, false);
-
-        return proxy;
     }
 
     /** {@inheritDoc} */
@@ -2395,11 +2373,6 @@ public abstract class IgniteTxAdapter extends GridMetadataAwareAdapter implement
         /** {@inheritDoc} */
         @Override public boolean hasTransforms() {
             return false;
-        }
-
-        /** {@inheritDoc} */
-        @Override public TransactionProxy proxy() {
-            return null;
         }
 
         /** {@inheritDoc} */

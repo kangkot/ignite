@@ -27,6 +27,7 @@ import javax.transaction.xa.Xid;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteLogger;
 import org.apache.ignite.internal.GridKernalContext;
+import org.apache.ignite.internal.processors.cache.distributed.near.GridNearTxLocal;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteInternalTx;
 import org.apache.ignite.internal.util.typedef.internal.S;
 import org.apache.ignite.internal.util.typedef.internal.U;
@@ -51,7 +52,7 @@ final class CacheJtaResource implements XAResource, Synchronization {
     private static final Xid[] NO_XID = new Xid[] {};
 
     /** Cache transaction. */
-    private IgniteInternalTx cacheTx;
+    private GridNearTxLocal cacheTx;
 
     /** */
     private Xid xid;
@@ -60,7 +61,7 @@ final class CacheJtaResource implements XAResource, Synchronization {
      * @param cacheTx Cache jta.
      * @param ctx Kernal context.
      */
-    public CacheJtaResource(IgniteInternalTx cacheTx, GridKernalContext ctx) {
+    CacheJtaResource(GridNearTxLocal cacheTx, GridKernalContext ctx) {
         assert cacheTx != null;
         assert ctx != null;
 
@@ -291,7 +292,7 @@ final class CacheJtaResource implements XAResource, Synchronization {
      *
      * @return {@code true} if jta was already committed or rolled back.
      */
-    public boolean isFinished() {
+    boolean isFinished() {
         TransactionState state = cacheTx.state();
 
         return state == COMMITTED || state == ROLLED_BACK;

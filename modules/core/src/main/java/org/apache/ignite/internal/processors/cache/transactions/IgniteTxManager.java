@@ -206,54 +206,6 @@ public class IgniteTxManager extends GridCacheSharedManagerAdapter {
     private TxDeadlockDetection txDeadlockDetection;
 
     /** {@inheritDoc} */
-    @Override protected void onKernalStart0(boolean reconnect) {
-        if (reconnect)
-            return;
-
-        cctx.gridEvents().addLocalEventListener(
-            new GridLocalEventListener() {
-                @Override public void onEvent(Event evt) {
-                    assert evt instanceof DiscoveryEvent;
-                    assert evt.type() == EVT_NODE_FAILED || evt.type() == EVT_NODE_LEFT;
-
-                    DiscoveryEvent discoEvt = (DiscoveryEvent)evt;
-
-                    UUID nodeId = discoEvt.eventNode().id();
-
-                    cctx.time().addTimeoutObject(new NodeFailureTimeoutObject(nodeId));
-
-                    if (txFinishSync != null)
-                        txFinishSync.onNodeLeft(nodeId);
-
-                    for (TxDeadlockFuture fut : deadlockDetectFuts.values())
-                        fut.onNodeLeft(nodeId);
-
-                    for (Map.Entry<GridCacheVersion, Object> entry : completedVersHashMap.entrySet()) {
-                        Object obj = entry.getValue();
-
-                        if (obj instanceof GridCacheReturnCompletableWrapper &&
-                            nodeId.equals(((GridCacheReturnCompletableWrapper)obj).nodeId()))
-                            removeTxReturn(entry.getKey());
-                    }
-                }
-            },
-            EVT_NODE_FAILED, EVT_NODE_LEFT);
-
-        this.txDeadlockDetection = new TxDeadlockDetection(cctx);
-
-        cctx.gridIO().addMessageListener(TOPIC_TX, new DeadlockDetectionListener());
-
-        for (IgniteInternalTx tx : idMap.values()) {
-            if ((!tx.local() || tx.dht()) && !cctx.discovery().aliveAll(tx.masterNodeIds())) {
-                if (log.isDebugEnabled())
-                    log.debug("Remaining transaction from left node: " + tx);
-
-                salvageTx(tx, true, USER_FINISH);
-            }
-        }
-    }
-
-    /** {@inheritDoc} */
     @Override protected void onKernalStop0(boolean cancel) {
         cctx.gridIO().removeMessageListener(TOPIC_TX);
     }
@@ -293,6 +245,39 @@ public class IgniteTxManager extends GridCacheSharedManagerAdapter {
                 }
             }
         };
+
+        cctx.gridEvents().addLocalEventListener(
+            new GridLocalEventListener() {
+                @Override public void onEvent(Event evt) {
+                    assert evt instanceof DiscoveryEvent;
+                    assert evt.type() == EVT_NODE_FAILED || evt.type() == EVT_NODE_LEFT;
+
+                    DiscoveryEvent discoEvt = (DiscoveryEvent)evt;
+
+                    UUID nodeId = discoEvt.eventNode().id();
+
+                    cctx.time().addTimeoutObject(new NodeFailureTimeoutObject(nodeId));
+
+                    if (txFinishSync != null)
+                        txFinishSync.onNodeLeft(nodeId);
+
+                    for (TxDeadlockFuture fut : deadlockDetectFuts.values())
+                        fut.onNodeLeft(nodeId);
+
+                    for (Map.Entry<GridCacheVersion, Object> entry : completedVersHashMap.entrySet()) {
+                        Object obj = entry.getValue();
+
+                        if (obj instanceof GridCacheReturnCompletableWrapper &&
+                            nodeId.equals(((GridCacheReturnCompletableWrapper)obj).nodeId()))
+                            removeTxReturn(entry.getKey());
+                    }
+                }
+            },
+            EVT_NODE_FAILED, EVT_NODE_LEFT);
+
+        this.txDeadlockDetection = new TxDeadlockDetection(cctx);
+
+        cctx.gridIO().addMessageListener(TOPIC_TX, new DeadlockDetectionListener());
     }
 
     /** {@inheritDoc} */
@@ -461,7 +446,7 @@ public class IgniteTxManager extends GridCacheSharedManagerAdapter {
      * @param txSize Expected transaction size.
      * @return New transaction.
      */
-    public IgniteTxLocalAdapter newTx(
+    public GridNearTxLocal newTx(
         boolean implicit,
         boolean implicitSingle,
         @Nullable GridCacheContext sysCacheCtx,
@@ -672,13 +657,19 @@ public class IgniteTxManager extends GridCacheSharedManagerAdapter {
     }
 
     /**
+     * @param cctx Cache context.
      * @return Transaction for current thread.
      */
-    @SuppressWarnings({"unchecked"})
-    public <T> T threadLocalTx(GridCacheContext cctx) {
+    public GridNearTxLocal threadLocalTx(GridCacheContext cctx) {
         IgniteInternalTx tx = tx(cctx, Thread.currentThread().getId());
 
-        return tx != null && tx.local() && (!tx.dht() || tx.colocated()) && !tx.implicit() ? (T)tx : null;
+        if (tx != null && tx.local() && (!tx.dht() || tx.colocated()) && !tx.implicit()) {
+            assert tx instanceof GridNearTxLocal : tx;
+
+            return (GridNearTxLocal)tx;
+        }
+
+        return null;
     }
 
     /**
@@ -747,48 +738,53 @@ public class IgniteTxManager extends GridCacheSharedManagerAdapter {
      * @return Local transaction.
      */
     @Nullable public IgniteInternalTx localTxx() {
-        IgniteInternalTx tx = txx();
+        IgniteInternalTx tx = tx();
 
         return tx != null && tx.local() ? tx : null;
     }
 
     /**
-     * @return Transaction for current thread.
-     */
-    @SuppressWarnings({"unchecked"})
-    public IgniteInternalTx txx() {
-        return tx();
-    }
-
-    /**
      * @return User transaction for current thread.
      */
-    @Nullable public IgniteInternalTx userTx() {
+    @Nullable public GridNearTxLocal userTx() {
         IgniteInternalTx tx = txContext();
 
-        if (tx != null && tx.user() && tx.state() == ACTIVE)
-            return tx;
+        if (activeUserTx(tx))
+            return (GridNearTxLocal)tx;
 
         tx = tx(null, Thread.currentThread().getId());
 
-        return tx != null && tx.user() && tx.state() == ACTIVE ? tx : null;
+        if (activeUserTx(tx))
+            return (GridNearTxLocal)tx;
+
+        return null;
     }
 
     /**
+     * @param cctx Cache context.
      * @return User transaction for current thread.
      */
-    @Nullable public IgniteInternalTx userTx(GridCacheContext cctx) {
+    @Nullable GridNearTxLocal userTx(GridCacheContext cctx) {
         IgniteInternalTx tx = tx(cctx, Thread.currentThread().getId());
 
-        return tx != null && tx.user() && tx.state() == ACTIVE ? tx : null;
+        if (activeUserTx(tx))
+            return (GridNearTxLocal)tx;
+
+        return null;
     }
 
     /**
-     * @return User transaction.
+     * @param tx Transaction.
+     * @return {@code True} if given transaction is explicitly started user transaction.
      */
-    @SuppressWarnings({"unchecked"})
-    @Nullable public <T extends IgniteTxLocalEx> T userTxx() {
-        return (T)userTx();
+    private boolean activeUserTx(@Nullable IgniteInternalTx tx) {
+        if (tx != null && tx.user() && tx.state() == ACTIVE) {
+            assert tx instanceof GridNearTxLocal : tx;
+
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -1984,7 +1980,9 @@ public class IgniteTxManager extends GridCacheSharedManagerAdapter {
         if (tx instanceof GridDistributedTxRemoteAdapter) {
             IgniteTxRemoteEx rmtTx = (IgniteTxRemoteEx)tx;
 
-            rmtTx.doneRemote(tx.xidVersion(), Collections.<GridCacheVersion>emptyList(), Collections.<GridCacheVersion>emptyList(),
+            rmtTx.doneRemote(tx.xidVersion(),
+                Collections.<GridCacheVersion>emptyList(),
+                Collections.<GridCacheVersion>emptyList(),
                 Collections.<GridCacheVersion>emptyList());
         }
 

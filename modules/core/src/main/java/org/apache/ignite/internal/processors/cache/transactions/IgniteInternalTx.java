@@ -57,9 +57,6 @@ public interface IgniteInternalTx extends AutoCloseable {
         /** Transaction is being finalized by user. */
         USER_FINISH,
 
-        /** Recovery request is received, user finish requests should be ignored. */
-        RECOVERY_WAIT,
-
         /** Transaction is being finalized by recovery procedure. */
         RECOVERY_FINISH
     }
@@ -687,11 +684,6 @@ public interface IgniteInternalTx extends AutoCloseable {
      *      transactions.
      */
     public boolean hasTransforms();
-
-    /**
-     * @return Public API proxy.
-     */
-    public TransactionProxy proxy();
 
     /**
      * @param topVer New topology version.

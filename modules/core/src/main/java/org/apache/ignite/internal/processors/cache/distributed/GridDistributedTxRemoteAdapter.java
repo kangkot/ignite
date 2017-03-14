@@ -83,7 +83,7 @@ import static org.apache.ignite.transactions.TransactionState.UNKNOWN;
 /**
  * Transaction created by system implicitly on remote nodes.
  */
-public class GridDistributedTxRemoteAdapter extends IgniteTxAdapter
+public abstract class GridDistributedTxRemoteAdapter extends IgniteTxAdapter
     implements IgniteTxRemoteEx {
     /** */
     private static final long serialVersionUID = 0L;
@@ -177,11 +177,6 @@ public class GridDistributedTxRemoteAdapter extends IgniteTxAdapter
     /** {@inheritDoc} */
     @Override public UUID eventNodeId() {
         return nodeId;
-    }
-
-    /** {@inheritDoc} */
-    @Override public Collection<UUID> masterNodeIds() {
-        return Collections.singleton(nodeId);
     }
 
     /** {@inheritDoc} */
@@ -378,11 +373,9 @@ public class GridDistributedTxRemoteAdapter extends IgniteTxAdapter
     }
 
     /**
-     * Prepare phase.
-     *
-     * @throws IgniteCheckedException If prepare failed.
+     * @throws IgniteCheckedException If failed.
      */
-    @Override public void prepare() throws IgniteCheckedException {
+    public final void prepareRemoteTx() throws IgniteCheckedException {
         // If another thread is doing prepare or rollback.
         if (!state(PREPARING)) {
             // In optimistic mode prepare may be called multiple times.
@@ -405,6 +398,15 @@ public class GridDistributedTxRemoteAdapter extends IgniteTxAdapter
 
             throw e;
         }
+    }
+
+    /**
+     * Prepare phase.
+     *
+     * @throws IgniteCheckedException If prepare failed.
+     */
+    @Override public void prepare() throws IgniteCheckedException {
+        prepareRemoteTx();
     }
 
     /**

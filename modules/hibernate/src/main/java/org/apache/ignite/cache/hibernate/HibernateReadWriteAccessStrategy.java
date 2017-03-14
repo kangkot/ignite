@@ -22,6 +22,7 @@ import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.internal.processors.cache.IgniteInternalCache;
+import org.apache.ignite.internal.processors.cache.distributed.near.GridNearTxLocal;
 import org.apache.ignite.internal.util.GridLeanSet;
 import org.apache.ignite.transactions.Transaction;
 import org.hibernate.cache.CacheException;
@@ -250,15 +251,15 @@ public class HibernateReadWriteAccessStrategy extends HibernateAccessStrategyAda
         if (ctx.unlocked(key)) { // Finish transaction if last key is unlocked.
             txCtx.remove();
 
-            Transaction tx = cache.tx();
+            GridNearTxLocal tx = cache.tx();
 
             assert tx != null;
 
             try {
-                tx.commit();
+                tx.proxy().commit();
             }
             finally {
-                tx.close();
+                tx.proxy().close();
             }
 
             assert cache.tx() == null;
@@ -275,10 +276,10 @@ public class HibernateReadWriteAccessStrategy extends HibernateAccessStrategyAda
             if (ctx != null) {
                 txCtx.remove();
 
-                Transaction tx = cache.tx();
+                GridNearTxLocal tx = cache.tx();
 
                 if (tx != null)
-                    tx.rollback();
+                    tx.proxy().rollback();
             }
         }
         catch (IgniteException e) {
